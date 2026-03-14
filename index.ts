@@ -39,9 +39,17 @@ try {
     if (serviceAccountJson) {
       console.log("📦 Usando FIREBASE_SERVICE_ACCOUNT_JSON de las variables...");
       try {
-        credential = admin.credential.cert(JSON.parse(serviceAccountJson));
+        // Limpieza de posibles comillas extra al principio/final
+        let cleanedJson = serviceAccountJson.trim();
+        if (cleanedJson.startsWith('"') && cleanedJson.endsWith('"')) {
+          cleanedJson = cleanedJson.substring(1, cleanedJson.length - 1);
+        }
+        // Reemplazar posibles escapes de comillas dobles si se pegó mal
+        cleanedJson = cleanedJson.replace(/\\"/g, '"');
+        
+        credential = admin.credential.cert(JSON.parse(cleanedJson));
       } catch (parseErr) {
-        throw new Error("El JSON de FIREBASE_SERVICE_ACCOUNT_JSON no es válido. Revisa que no le sobren comillas.");
+        throw new Error(`El JSON no es válido. Error: ${parseErr.message}`);
       }
     } else {
       console.log("📂 Usando credenciales por defecto/archivo...");
