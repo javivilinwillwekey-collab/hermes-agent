@@ -1,7 +1,6 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import fs from 'fs';
-import { join } from 'path';
+import { skillManager } from './skillManager.js';
 
 const execAsync = promisify(exec);
 
@@ -18,14 +17,11 @@ export const toolsDefinitions = [
     type: "function" as const,
     function: {
       name: "use_skill",
-      description: "Carga las instrucciones de una 'skill' específica (github, gog, fix, superpowers). Úsala ANTES de realizar cualquier tarea relacionada.",
+      description: "Carga las instrucciones detalladas de una habilidad (github, gog, mcp, fix, superpowers). Úsala ante CUALQUIER duda técnica.",
       parameters: {
         type: "object",
         properties: {
-          skill_name: {
-            type: "string",
-            description: "Nombre de la skill ('github', 'gog', 'mcp', 'superpowers', 'fix')."
-          }
+          skill_name: { type: "string", description: "Identificador de la skill." }
         },
         required: ["skill_name"]
       }
@@ -34,56 +30,74 @@ export const toolsDefinitions = [
   {
     type: "function" as const,
     function: {
-      name: "execute_command",
-      description: "Ejecuta un comando en la consola (CLI). Úsala para gh, gog, git, npm, etc.",
+      name: "search_skills",
+      description: "Busca habilidades relevantes según una consulta o palabra clave.",
       parameters: {
         type: "object",
         properties: {
-          command: {
-            type: "string",
-            description: "El comando completo a ejecutar."
-          }
+          query: { type: "string", description: "Término de búsqueda." }
+        },
+        required: ["query"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "execute_command",
+      description: "Ejecuta un comando CLI (gh, gog, git, npm, etc.). Soporta ejecución paralela.",
+      parameters: {
+        type: "object",
+        properties: {
+          command: { type: "string", description: "Comando completo a ejecutar." }
         },
         required: ["command"]
+      }
+    }
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "self_reflection",
+      description: "Permite al agente revisar críticamente su propio plan o razonamiento antes de emitir una respuesta final.",
+      parameters: {
+        type: "object",
+        properties: {
+          thoughts: { type: "string", description: "Análisis interno de los pasos seguidos y validación del resultado." }
+        },
+        required: ["thoughts"]
       }
     }
   }
 ];
 
 export const toolsImplementations: Record<string, (args: any) => Promise<string> | string> = {
-  "get_current_time": () => {
-    return new Date().toLocaleString('es-ES');
-  },
+  "get_current_time": () => new Date().toLocaleString('es-ES'),
   
   "use_skill": async (args: { skill_name: string }) => {
-    const skillMap: Record<string, string> = {
-      'github': 'SKILL.md',
-      'gog': 'gog.md',
-      'mcp': 'mcp-integr.md',
-      'fix': 'fix.md',
-      'superpowers': 'superpowers.md'
-    };
-    
-    const filename = skillMap[args.skill_name.toLowerCase()] || `${args.skill_name}.md`;
-    const path = join(process.cwd(), filename);
-    
-    try {
-      if (fs.existsSync(path)) {
-        return fs.readFileSync(path, 'utf-8');
-      }
-      return `Error: No se encontró la skill '${args.skill_name}'. Skills: ${Object.keys(skillMap).join(', ')}`;
-    } catch (e: any) {
-      return `Error al leer la skill: ${e.message}`;
-    }
+    const skill = skillManager.getSkill(args.skill_name);
+    if (skill) return `--- SKILL: ${skill.name} ---\n${skill.content}`;
+    return `Error: Skill '${args.skill_name}' no encontrada. Disponibles: ${skillManager.getAllSkillIds().join(', ')}`;
+  },
+
+  "search_skills": async (args: { query: string }) => {
+    const relevant = skillManager.findRelevantSkills(args.query);
+    if (relevant.length === 0) return "No encontré skills específicas para esa consulta.";
+    return `Skills posiblemente relevantes: ${relevant.join(', ')}. Usa 'use_skill' para cargar una.`;
   },
 
   "execute_command": async (args: { command: string }) => {
     try {
-      console.log(`💻 Ejecutando: ${args.command}`);
+      console.log(`💻 [CLI] ${args.command}`);
       const { stdout, stderr } = await execAsync(args.command);
-      return stdout || stderr || "Comando ejecutado sin salida.";
+      return stdout || stderr || "Ejecutado con éxito (sin salida).";
     } catch (error: any) {
-      return `Error: ${error.stdout || ""}\n${error.stderr || ""}\n${error.message}`;
+      return `Error CLI: ${error.stdout || ""}\n${error.stderr || ""}\n${error.message}`;
     }
+  },
+
+  "self_reflection": (args: { thoughts: string }) => {
+    console.log(`🧠 [Self-Reflection]: ${args.thoughts}`);
+    return "Reflexión registrada. Procede con la respuesta final si el plan es coherente.";
   }
 };

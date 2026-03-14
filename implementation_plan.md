@@ -1,43 +1,40 @@
-# Plan de Especialización: Hermes v3.0
+# Plan de Evolución: Hermes v4.0 "Expert Evolution"
 
-Este plan introduce una arquitectura de "Especialistas" para Hermes, permitiéndole ser más experto en áreas específicas sin perder su versatilidad general, y simplifica el proceso de despliegue.
+Este plan detalla la transición de Hermes hacia una arquitectura de nivel experto, enfocada en la excelencia técnica, la velocidad de ejecución y la coherencia del sistema de habilidades.
 
-## User Review Required
+## Proposed Changes
 
-> [!IMPORTANT]
-> **Sobre las actualizaciones en GitHub**: Actualmente, mis cambios se quedan en el "laboratorio" de mi workspace. Para que lleguen a Railway, **debes hacer un `git push`**. He incluido en este plan un script de "Autodespliegue" (`deploy.sh`) para que puedas hacerlo con un solo comando.
+### 1. Arquitectura "Skill-First"
+- **`SkillManager`**: Crearemos un gestor dedicado para las habilidades. En lugar de leer archivos `.md` ad-hoc, el `SkillManager` cargará, indexará y proporcionará el contexto más relevante de forma eficiente.
+- **Directorio `src/skills/`**: Organizaremos los archivos de instrucciones dentro de una estructura de código coherente.
 
-## Cambios Propuestos
+### 2. Ejecución Paralela de Herramientas
+- **Optimización del Loop**: Modificaremos el bucle de razonamiento en `agent.ts` para que, si el LLM solicita múltiples herramientas, estas se ejecuten simultáneamente usando `Promise.all`. Esto reducirá drásticamente el tiempo de respuesta en tareas complejas.
 
-### 1. Sistema de Especialistas
-- **Modos de Agente**: Implementaremos 3 modos principales:
-    - **`CodeExpert`**: Especializado en `github`, `fix` y arquitectura de software.
-    - **`WorkManager`**: Especializado en `gog` (Google Gmail, Calendar, Drive).
-    - **`HermesPrime`**: El asistente general con "Superpowers" para todo lo demás.
-- **Cambio de Contexto**: El agente podrá cambiar su propio sistema de prompts si detecta que la tarea es muy específica.
+### 3. Excelencia Técnica y Rendimiento
+- **Gestión de Contexto (Context Pruning)**: Implementaremos una lógica para resumir el historial antiguo de la conversación cuando el número de tokens sea elevado, manteniendo siempre el foco en la tarea actual.
+- **Tipado Estricto**: Refactorizaremos los módulos para usar interfaces de TypeScript más robustas, evitando el uso de `any` y mejorando la mantenibilidad.
 
-### 2. Flujo de Razonamiento "Plan-first"
-- Obligaremos al agente a escribir un **Plan Interno** en la primera iteración de cada mensaje complejo antes de llamar a cualquier herramienta.
-
-### 3. Automatización del Despliegue
-- Crear un script `deploy.sh` en la raíz del proyecto para automatizar la copia de archivos y el commit a GitHub.
+### 4. Herramientas de "Meta-Cognición"
+- **`self_reflection`**: Una nueva herramienta que permite al agente "revisar" su propio plan o resultado antes de entregarlo al usuario, elevando la calidad de las respuestas.
 
 ## Componentes a Modificar
 
-#### [NEW] [specialists.ts](file:///home/javier-montoro/.gemini/antigravity/brain/03fa5ddc-9cbe-4cb9-92c8-0010a32dc0a8/src/specialists.ts)
-- Definiciones de prompts especializados.
+#### [NEW] [skillManager.ts](file:///home/javier-montoro/.gemini/antigravity/brain/03fa5ddc-9cbe-4cb9-92c8-0010a32dc0a8/src/skillManager.ts)
+- Clase central para la gestión de skills y búsqueda de contexto.
 
 #### [MODIFY] [agent.ts](file:///home/javier-montoro/.gemini/antigravity/brain/03fa5ddc-9cbe-4cb9-92c8-0010a32dc0a8/src/agent.ts)
-- Integrar la selección de especialista y el paso de planificación.
+- Actualización para soportar ejecución paralela y poda de contexto.
 
-#### [NEW] [deploy.sh](file:///home/javier-montoro/.gemini/antigravity/brain/03fa5ddc-9cbe-4cb9-92c8-0010a32dc0a8/deploy.sh)
-- Script para sincronizar el espacio de trabajo con el repositorio de Hermes y subir los cambios.
+#### [MODIFY] [tools.ts](file:///home/javier-montoro/.gemini/antigravity/brain/03fa5ddc-9cbe-4cb9-92c8-0010a32dc0a8/src/tools.ts)
+- Integración con el `SkillManager` y adición de `self_reflection`.
 
-## Verificación Plan
+## Plan de Verificación
 
 ### Automatizada
-- Verificar que el script `deploy.sh` funciona correctamente y copia todos los archivos de `src/`.
+- Pruebas de velocidad: Comparar el tiempo de ejecución de 3 herramientas secuenciales vs paralelas.
+- Validación de tipos: `npm run build` para asegurar coherencia.
 
 ### Manual
-- Preguntar a Hermes: "Actúa como un experto en código y analiza mi repositorio".
-- Verificar que el agente responde: "Cambiando a modo CodeExpert... Usando skill github para..."
+- Pedir a Hermes una tarea que requiera 3 acciones (ej: "Busca un correo de X, resume su contenido en un Doc y avísame por Telegram").
+- Verificar que las acciones de búsqueda y lectura se ejecutan en paralelo.

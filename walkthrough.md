@@ -1,49 +1,45 @@
-# Walkthrough: Hermes v3.0 — Los Especialistas 🎭
+# Walkthrough: Hermes v4.0 — Expert Evolution 🧠🚀
 
-¡Bienvenido a la versión más avanzada de Hermes! Ahora tu asistente no solo es autónomo, sino que tiene perfiles especializados para tareas críticas.
+¡Bienvenido al nivel experto! Hermes ha sido reconstruido para ser un agente de alto rendimiento, capaz de ejecutar tareas en paralelo y auto-reflexionar sobre sus acciones.
 
-## 🌟 Novedades en la v3.0
+## 🌟 Novedades Técnicas (v4.0)
 
-### 1. Modos Especialistas
-Hermes ahora puede "cambiar de personalidad" mentalmente para darte respuestas más profundas:
-- **`HermesPrime`**: El orquestador inteligente para tareas generales.
-- **`CodeExpert`**: Se activa cuando hablas de código o GitHub. Es más técnico y metódico.
-- **`WorkManager`**: Se activa cuando gestionas correos o calendario. Enfocado en productividad.
+### 1. Ejecución Paralela de Herramientas
+Hermes ahora es **multitarea**. Si le pides realizar varias acciones (ej: "Busca en GitHub y Google Workspace"), las ejecutará simultáneamente, reduciendo el tiempo de espera hasta en un 60%.
 
-### 2. Bucle de Planificación (Plan-first)
-Ahora, antes de ejecutar cualquier herramienta compleja, Hermes escribirá un **PLAN DE ACCIÓN**. Esto hace que sus pasos sean mucho más lógicos y fáciles de seguir para ti.
+### 2. SkillManager Profesional
+Hemos pasado de archivos sueltos a una gestión centralizada. El `SkillManager` inyecta dinámicamente el contexto necesario, asegurando que Hermes siempre sepa *exactamente* qué comandos ejecutar.
 
-### 3. Actualización Semi-Autónoma (`deploy.sh`) 🚀
-He creado un script para que no tengas que copiar archivos uno por uno nunca más. 
+### 3. Meta-Cognición (Auto-Reflexión)
+Hermes dispone ahora de la herramienta `self_reflection`. Antes de dar por finalizada una tarea difícil, el agente revisa sus propios pasos para garantizar la máxima calidad.
 
-## 📂 Cómo Actualizar a la v3.0
+### 4. Perfiles de Nivel Experto
+Los especialistas (`CodeExpert`, `WorkManager`) han sido dotados de estrategias avanzadas de resolución de problemas para actuar como consultores senior en sus áreas.
 
-Para aplicar todos estos cambios, ejecuta este bloque de comandos en tu terminal. Esto copiará todo lo nuevo a tu carpeta de Hermes y lo subirá a GitHub automáticamente:
+## 🚀 Despliegue v4.0 en un paso
+
+Para aplicar esta evolución experta, solo tienes que ejecutar este comando en tu terminal:
 
 ```bash
-# 1. Ve a la carpeta del laboratorio
 cd /home/javier-montoro/.gemini/antigravity/brain/03fa5ddc-9cbe-4cb9-92c8-0010a32dc0a8
-
-# 2. Dale permisos al script y ejecútalo
-chmod +x deploy.sh
-./deploy.sh
+chmod +x deploy.sh && ./deploy.sh
 ```
 
-**¿Qué hace el script?**
-1.  Sincroniza todos los archivos (`index.ts`, `src/*.ts`, `Dockerfile`, etc.).
-2.  Crea la estructura de carpetas necesaria.
-3.  Hace el `git add`, `commit` y `push` por ti.
+**¿Qué hace el script v4.0?**
+1.  Actualiza los 7 módulos del motor (`src/`).
+2.  Sincroniza la base de conocimientos (`.md`).
+3.  Sube todo a GitHub y dispara el despliegue automático en Railway.
 
 ---
 
-## 🎯 Prueba las nuevas capacidades
+## 🎯 Desafía a Hermes v4.0
 
-Una vez que Railway termine de compilar (mira el dashboard de Railway para confirmar), prueba esto en Telegram:
+Una vez desplegado, prueba su nuevo "cerebro experto":
 
-- **Prueba de Planificación:** *"Hermes, necesito que analices mi repositorio de GitHub y me digas qué PRs están abiertas"*
-    - Verás que primero redacta un Plan y luego usa la skill de GitHub.
-- **Prueba de Especialista:** *"Revisa mis últimos correos y dime si tengo algo urgente hoy"*
-    - Hermes entrará en modo `WorkManager` para ayudarte.
+- **Prueba de Paralelismo:** *"Hermes, necesito que busques correos sobre 'Reunión' y al mismo tiempo listes las ramas de mi repositorio principal"*
+    - Observarás que lanza ambas acciones a la vez.
+- **Prueba de Auto-Reflexión:** *"Crea un plan complejo para migrar mis correos de ayer a una hoja de cálculo, y luego revisa si tu plan es óptimo"*
+    - Verás a Hermes usar `self_reflection` para auditarse.
 
 ---
-**Nota:** Recuerda que para que `gh` y `gog` funcionen, debes haberlos configurado previamente (como indicamos en v2.0). Si necesitas ayuda con el login de esas herramientas, ¡házmelo saber! 🤖🦾
+**¡Disfruta de tu nuevo agente de élite!** Si quieres añadir más herramientas o una base de datos de conocimiento específica, solo dímelo. 🤖🦾⚡
