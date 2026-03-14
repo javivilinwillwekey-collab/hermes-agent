@@ -175,22 +175,23 @@ bot.on("message:voice", async (ctx) => {
     fs.writeFileSync(tempIn, response.data);
     console.log("✅ Audio guardado en:", tempIn);
 
-    // 2. STT (Whisper) - usando toFile para especificar formato OGG correctamente
-    console.log("📝 Transcribiendo con Whisper (OGG)...");
-    const audioForGroq = await toFile(
-      fs.createReadStream(tempIn),
-      'audio.ogg',
-      { type: 'audio/ogg' }
+    // 2. STT - llamada directa a Groq con FormData (más fiable)
+    console.log("📝 Transcribiendo con Whisper (FormData directo)...");
+    const FormData = (await import('form-data')).default;
+    const form = new FormData();
+    form.append('file', fs.createReadStream(tempIn), { filename: 'audio.ogg', contentType: 'audio/ogg' });
+    form.append('model', 'whisper-large-v3');
+    form.append('language', 'es');
+    form.append('response_format', 'text');
+
+    const sttResponse = await axios.post(
+      'https://api.groq.com/openai/v1/audio/transcriptions',
+      form,
+      { headers: { 'Authorization': `Bearer ${GROQ_API_KEY}`, ...form.getHeaders() } }
     );
 
-    const transcription = await groq.audio.transcriptions.create({
-      file: audioForGroq,
-      model: "whisper-large-v3",
-      language: "es"
-    });
-
     fs.unlinkSync(tempIn);
-    const userText = transcription.text;
+    const userText = sttResponse.data as string;
     console.log(`🎙️ Transcripción: "${userText}"`);
     
     if (!userText.trim()) {
