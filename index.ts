@@ -37,19 +37,13 @@ try {
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     
     if (serviceAccountJson) {
-      console.log("📦 Usando FIREBASE_SERVICE_ACCOUNT_JSON de las variables...");
+      console.log("📦 Usando FIREBASE_SERVICE_ACCOUNT_JSON (Base64)...");
       try {
-        // Limpieza de posibles comillas extra al principio/final
-        let cleanedJson = serviceAccountJson.trim();
-        if (cleanedJson.startsWith('"') && cleanedJson.endsWith('"')) {
-          cleanedJson = cleanedJson.substring(1, cleanedJson.length - 1);
-        }
-        // Reemplazar posibles escapes de comillas dobles si se pegó mal
-        cleanedJson = cleanedJson.replace(/\\"/g, '"');
-        
-        credential = admin.credential.cert(JSON.parse(cleanedJson));
-      } catch (parseErr) {
-        throw new Error(`El JSON no es válido. Error: ${parseErr.message}`);
+        // Decodificar Base64 -> JSON string -> Objeto
+        const decoded = Buffer.from(serviceAccountJson.trim(), 'base64').toString('utf-8');
+        credential = admin.credential.cert(JSON.parse(decoded));
+      } catch (parseErr: any) {
+        throw new Error(`Error decodificando la clave Firebase: ${parseErr.message}`);
       }
     } else {
       console.log("📂 Usando credenciales por defecto/archivo...");
