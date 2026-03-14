@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+memory.db
+service-account.json
+# No incluimos el .env porque en Hugging Face usaremos "Secrets"
