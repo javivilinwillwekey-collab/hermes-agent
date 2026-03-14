@@ -29,20 +29,37 @@ const bot = new Bot(TELEGRAM_TOKEN);
 const groq = new OpenAI({ apiKey: GROQ_API_KEY, baseURL: 'https://api.groq.com/openai/v1' });
 
 console.log("🔥 Inicializando Firebase...");
-if (!admin.apps.length) {
-  try {
+let db: admin.firestore.Firestore;
+
+try {
+  if (!admin.apps.length) {
     let credential;
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+    
     if (serviceAccountJson) {
-      credential = admin.credential.cert(JSON.parse(serviceAccountJson));
+      console.log("📦 Usando FIREBASE_SERVICE_ACCOUNT_JSON de las variables...");
+      try {
+        credential = admin.credential.cert(JSON.parse(serviceAccountJson));
+      } catch (parseErr) {
+        throw new Error("El JSON de FIREBASE_SERVICE_ACCOUNT_JSON no es válido. Revisa que no le sobren comillas.");
+      }
     } else {
+      console.log("📂 Usando credenciales por defecto/archivo...");
       credential = GOOGLE_CREDENTIALS ? admin.credential.cert(GOOGLE_CREDENTIALS) : admin.credential.applicationDefault();
     }
-    admin.initializeApp({ projectId: FIREBASE_PROJECT_ID, credential });
-    console.log("✅ Firebase inicializado.");
-  } catch (e: any) { console.error("❌ Firebase Error:", e.message); }
+
+    admin.initializeApp({ 
+      projectId: FIREBASE_PROJECT_ID, 
+      credential 
+    });
+  }
+  db = admin.firestore();
+  console.log("✅ Firebase y Firestore inicializados correctamente.");
+} catch (e: any) {
+  console.error("❌ ERROR CRÍTICO AL INICIALIZAR FIREBASE:");
+  console.error(e.message);
+  process.exit(1); // Forzar reinicio si no hay base de datos
 }
-const db = admin.firestore();
 
 // --- LÓGICA DE MEMORIA ---
 async function saveMessage(userId: number, role: string, content: string) {
