@@ -175,16 +175,20 @@ bot.on("message:voice", async (ctx) => {
     fs.writeFileSync(tempIn, response.data);
     console.log("✅ Audio guardado en:", tempIn);
 
-    // 2. STT (Whisper)
-    console.log("📝 Transcribiendo con Whisper...");
+    // 2. STT (Whisper) - especificar formato OGG para Telegram
+    console.log("📝 Transcribiendo con Whisper (formato ogg)...");
+    const audioFile = fs.createReadStream(tempIn);
+    (audioFile as any).path = 'audio.ogg'; // Hint de formato para Groq
+
     const transcription = await groq.audio.transcriptions.create({
-      file: fs.createReadStream(tempIn),
+      file: audioFile,
       model: "whisper-large-v3",
-      language: "es"
+      language: "es",
+      response_format: "text"
     });
     
     fs.unlinkSync(tempIn);
-    const userText = transcription.text;
+    const userText = transcription as unknown as string;
     console.log(`🎙️ Transcripción: "${userText}"`);
     
     if (!userText.trim()) {
