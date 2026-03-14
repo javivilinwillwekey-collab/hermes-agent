@@ -106,15 +106,36 @@ bot.use(async (ctx, next) => {
   console.warn(`⛔ Acceso denegado: ${ctx.from?.id}`);
 });
 
+async function sendResponse(ctx: any, text: string, forceVoice: boolean = false) {
+  const userId = ctx.from!.id;
+  const isVoiceRequest = forceVoice || text.toLowerCase().includes("háblame") || text.toLowerCase().includes("con voz") || text.toLowerCase().includes("audio");
+
+  if (isVoiceRequest && ELEVENLABS_API_KEY) {
+    try {
+      await ctx.replyWithChatAction("record_voice");
+      const audioPath = await textToSpeech(text);
+      await ctx.replyWithVoice(new InputFile(audioPath));
+      fs.unlinkSync(audioPath);
+    } catch (e: any) {
+      console.error("❌ Error ElevenLabs:", e.response?.data?.toString() || e.message);
+      await ctx.reply(text);
+      await ctx.reply("⚠️ (Nota: No pude generar el audio. Revisa tu clave de ElevenLabs o saldo).");
+    }
+  } else {
+    await ctx.reply(text);
+  }
+}
+
 bot.on("message:text", async (ctx) => {
   try {
-    console.log(`💬 Texto de ${ctx.from?.id}: "${ctx.message.text}"`);
+    const text = ctx.message.text;
+    console.log(`💬 Texto de ${ctx.from?.id}: "${text}"`);
     await ctx.replyWithChatAction("typing");
-    const reply = await handleText(ctx.from!.id, ctx.message.text);
-    await ctx.reply(reply);
+    const reply = await handleText(ctx.from!.id, text);
+    await sendResponse(ctx, reply, false);
   } catch (e: any) {
     console.error("❌ Error Texto:", e.message);
-    ctx.reply("❌ Error procesando mensaje.");
+    ctx.reply("❌ Error procesando mensaje: " + (e.message.includes("401") ? "Clave API inválida" : e.message));
   }
 });
 
@@ -123,39 +144,32 @@ bot.on("message:voice", async (ctx) => {
   const voiceId = ctx.message.voice.file_id;
   
   try {
-    console.log(`🎙️ Voz recibida (ID: ${voiceId}) de ${userId}`);
+    console.log(`🎙️ Voz recibida de ${userId}`);
     await ctx.reply("👂 Escuchando...");
     
-    // 1. Descargar audio
+    // 1. Descargar audio (Usando ArrayBuffer para evitar bloqueos de stream)
     const file = await ctx.getFile();
     const url = `https://api.telegram.org/file/bot${TELEGRAM_TOKEN}/${file.file_path}`;
-    const tempIn = join(tmpdir(), `hermes_in_${Date.now()}.ogg`);
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
     
-    const writer = fs.createWriteStream(tempIn);
-    const response = await axios.get(url, { responseType: 'stream' });
-    response.data.pipe(writer);
-
-    await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
-
-    console.log("✅ Audio descargado localmente.");
+    const tempIn = join(tmpdir(), `hermes_in_${Date.now()}.ogg`);
+    fs.writeFileSync(tempIn, response.data);
+    console.log("✅ Audio guardado en:", tempIn);
 
     // 2. STT (Whisper)
+    console.log("📝 Transcribiendo con Whisper...");
     const transcription = await groq.audio.transcriptions.create({
       file: fs.createReadStream(tempIn),
       model: "whisper-large-v3",
       language: "es"
     });
     
-    fs.unlinkSync(tempIn); // Limpiar
-    
+    fs.unlinkSync(tempIn);
     const userText = transcription.text;
     console.log(`🎙️ Transcripción: "${userText}"`);
     
     if (!userText.trim()) {
-      await ctx.reply("No he podido entender el audio, ¿puedes repetirlo?");
+      await ctx.reply("No he podido oír nada, ¿puedes repetirlo?");
       return;
     }
 
@@ -163,19 +177,15 @@ bot.on("message:voice", async (ctx) => {
     await ctx.replyWithChatAction("typing");
     const replyText = await handleText(userId, userText);
     
-    // 4. TTS (ElevenLabs)
-    if (ELEVENLABS_API_KEY && replyText) {
-      await ctx.replyWithChatAction("record_voice");
-      const audioPath = await textToSpeech(replyText);
-      await ctx.replyWithVoice(new InputFile(audioPath));
-      fs.unlinkSync(audioPath); // Limpiar temp
-    } else {
-      await ctx.reply(replyText);
-    }
+    // 4. Responder con Voz (Siempre responder con voz si mandan un audio)
+    await sendResponse(ctx, replyText, true);
     
   } catch (e: any) {
-    console.error("❌ Error Audio:", e.message);
-    ctx.reply("❌ Ups, he tenido un problema escuchando ese audio.");
+    console.error("❌ Error Crítico en Audio:", e.response?.data?.toString() || e.message);
+    let msg = "❌ Ups, he tenido un problema.";
+    if (e.message.includes("401")) msg = "❌ Error: Clave API no válida.";
+    if (e.message.includes("429")) msg = "❌ Error: Límite de uso excedido.";
+    ctx.reply(msg);
   }
 });
 
