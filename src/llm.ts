@@ -22,13 +22,16 @@ export const llm = {
         tool_choice: tools?.length ? "auto" : undefined,
       });
     } catch (error: any) {
-      console.error(`LLM: Fallo en Groq: ${error.message}. Intentando con OpenRouter...`);
-      return await openRouterClient.chat.completions.create({
-        model: config.OPENROUTER_MODEL,
-        messages,
-        tools: tools?.length ? tools : undefined,
-        tool_choice: tools?.length ? "auto" : undefined,
-      });
+      if (config.OPENROUTER_API_KEY) {
+        console.error(`LLM: Fallo en Groq: ${error.message}. Intentando con OpenRouter...`);
+        return await openRouterClient.chat.completions.create({
+          model: config.OPENROUTER_MODEL,
+          messages,
+          tools: tools?.length ? tools : undefined,
+          tool_choice: tools?.length ? "auto" : undefined,
+        });
+      }
+      throw error;
     }
   }
 };

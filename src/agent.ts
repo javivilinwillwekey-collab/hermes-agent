@@ -1,83 +1,88 @@
 import { llm } from './llm.js';
-import { memory, Role } from './memory.js';
+import { memory } from './memory.js';
 import { toolsDefinitions, toolsImplementations } from './tools.js';
+import { SPECIALISTS, SpecialistMode } from './specialists.js';
 
-const SYSTEM_PROMPT = `Eres Hermes, un asistente personal de IA que se ejecuta localmente.
-Responde de forma clara, directa y segura. No eres un modelo de lenguaje de la web, eres un agente privado.
-Si te piden acciones que requieran herramientas (como la hora actual), usa las tools disponibles.`;
+// Sistema central de orquestación
+const BASE_SYSTEM_PROMPT = `Eres Hermes v3.0, un asistente personal de IA con capacidades autónomas.
+Tu misión es resolver tareas complejas mediante el uso inteligente de herramientas y especialistas.
+
+FLUJO DE TRABAJO OBLIGATORIO:
+1. **Identificación**: Determina si necesitas un especialista (CodeExpert o WorkManager).
+2. **Planificación**: En tu primera respuesta a una tarea compleja, escribe siempre un "PLAN DE ACCIÓN" detallando los pasos que vas a seguir.
+3. **Ejecución**: Usa las herramientas ('use_skill', 'execute_command', etc.) siguiendo el plan.
+4. **Revisión**: Antes de dar por finalizada la tarea, verifica que has cumplido el objetivo original.
+
+REGLAS DE SKILLS (SUPERPODERES):
+- Si hay un 1% de duda, carga la skill con 'use_skill'.
+- No adivines comandos; usa las skills para validarlos.
+- Anuncia: "Usando [skill] para [propósito]".
+
+Responde siempre en español profesional.`;
 
 export const agent = {
-  async handleUserInput(userId: number, userInput: string): Promise<string> {
-    // 1. Guardar el mensaje del usuario (AHORA ASYNC)
+  async handleUserInput(userId: number, userInput: string, onUpdate?: (text: string) => Promise<void>): Promise<string> {
     await memory.addMessage(userId, 'user', userInput);
     
     let iterations = 0;
-    const MAX_ITERATIONS = 5;
+    const MAX_ITERATIONS = 10;
+    let lastContent = "";
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
       
-      // 2. Recargar el historial actualizado (AHORA ASYNC)
       const history = await memory.getHistory(userId);
+      
+      // Determinar el modo según el contenido del usuario o el contexto
+      let currentMode: SpecialistMode = 'HermesPrime';
+      const lastUserMsg = history.filter(m => m.role === 'user').pop()?.content.toLowerCase() || "";
+      
+      if (lastUserMsg.includes('github') || lastUserMsg.includes('codigo') || lastUserMsg.includes('repo')) {
+        currentMode = 'CodeExpert';
+      } else if (lastUserMsg.includes('gmail') || lastUserMsg.includes('correo') || lastUserMsg.includes('calendario') || lastUserMsg.includes('drive')) {
+        currentMode = 'WorkManager';
+      }
+
+      const modePrompt = SPECIALISTS[currentMode];
       const messagesForLlm = [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: `${BASE_SYSTEM_PROMPT}\n\nMODO ACTUAL:\n${modePrompt}` },
         ...history.map(msg => {
-          const m: any = { 
-            role: msg.role as any, 
-            content: msg.content 
-          };
-          // Importante: Groq es estricto con los campos extra. 
-          // Solo enviamos tool_calls si es assistant y tool_call_id si es tool.
-          if (msg.role === 'assistant' && msg.tool_calls) {
-            m.tool_calls = msg.tool_calls;
-          }
-          if (msg.role === 'tool') {
-            m.tool_call_id = msg.tool_call_id;
-          }
+          const m: any = { role: msg.role, content: msg.content };
+          if (msg.role === 'assistant' && msg.tool_calls) m.tool_calls = msg.tool_calls;
+          if (msg.role === 'tool') m.tool_call_id = msg.tool_call_id;
           return m;
         })
       ];
 
-      // 3. Llamada al LLM
       const response = await llm.generateResponse(messagesForLlm, toolsDefinitions);
       const message = response.choices[0].message;
 
-      // 4. Guardar asistente en memoria (AHORA ASYNC)
-      await memory.addMessage(
-        userId, 
-        'assistant', 
-        message.content || "", 
-        message.tool_calls
-      );
+      await memory.addMessage(userId, 'assistant', message.content || "", message.tool_calls);
 
-      // 5. Si no hay llamadas a herramientas, devolvemos la respuesta
-      if (!message.tool_calls || message.tool_calls.length === 0) {
-        return message.content || "Sin respuesta del modelo.";
+      if (message.content) {
+        lastContent = message.content;
+        if (onUpdate) await onUpdate(lastContent);
       }
 
-      // 6. Si hay herramientas que resolver
-      for (const toolCall of message.tool_calls) {
-        if (toolCall.type === 'function') {
-          const fnName = toolCall.function.name;
-          const fnArgs = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
-          
-          let resultStr = "";
-          if (toolsImplementations[fnName]) {
-            try {
-              console.log(`Ejecutando herramienta: ${fnName} con args`, fnArgs);
-              resultStr = await Promise.resolve(toolsImplementations[fnName](fnArgs));
-            } catch (err: any) {
-              resultStr = `Error al ejecutar la herramienta: ${err.message}`;
-            }
-          } else {
-            resultStr = `Herramienta desconocida: ${fnName}`;
-          }
+      if (!message.tool_calls || message.tool_calls.length === 0) {
+        return lastContent || "He completado la tarea.";
+      }
 
-          // Añadir el resultado de la tool a la memoria (AHORA ASYNC)
-          await memory.addMessage(userId, 'tool', resultStr, undefined, toolCall.id);
+      for (const toolCall of message.tool_calls) {
+        const fnName = toolCall.function.name;
+        const fnArgs = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
+        
+        let resultStr = "";
+        try {
+          console.log(`🛠️ Agente ejecutando: ${fnName}`, fnArgs);
+          resultStr = await Promise.resolve(toolsImplementations[fnName] ? toolsImplementations[fnName](fnArgs) : `Herramienta ${fnName} no encontrada.`);
+        } catch (err: any) {
+          resultStr = `Error execution ${fnName}: ${err.message}`;
         }
+
+        await memory.addMessage(userId, 'tool', resultStr, undefined, toolCall.id);
       }
     }
-    return "Límite de iteraciones alcanzado del agente. Por favor, reformula tu petición.";
+    return lastContent + "\n\n⚠️ (Límite de razonamiento alcanzado).";
   }
 };

@@ -2,22 +2,26 @@ import admin from 'firebase-admin';
 import { config } from './config.js';
 
 // Inicializar Firebase Admin
-if (config.GOOGLE_APPLICATION_CREDENTIALS) {
+if (admin.apps.length === 0) {
   try {
+    let credential;
+    if (config.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      console.log("📦 Memory: Usando FIREBASE_SERVICE_ACCOUNT_JSON (Base64)...");
+      const decoded = Buffer.from(config.FIREBASE_SERVICE_ACCOUNT_JSON.trim(), 'base64').toString('utf-8');
+      credential = admin.credential.cert(JSON.parse(decoded));
+    } else {
+      console.log("📂 Memory: Usando credenciales por defecto...");
+      credential = admin.credential.applicationDefault();
+    }
+
     admin.initializeApp({
       projectId: config.FIREBASE_PROJECT_ID,
-      credential: admin.credential.cert(config.GOOGLE_APPLICATION_CREDENTIALS)
+      credential
     });
-    console.log("✅ Firebase Admin inicializado con service account.");
-  } catch (err) {
-    console.error("❌ Error al inicializar Firebase con service account:", err);
-    admin.initializeApp({
-      projectId: config.FIREBASE_PROJECT_ID, projectId: config.FIREBASE_PROJECT_ID });
+    console.log("✅ Firebase Admin inicializado.");
+  } catch (err: any) {
+    console.error("❌ Error al inicializar Firebase:", err.message);
   }
-} else {
-  admin.initializeApp({
-      projectId: config.FIREBASE_PROJECT_ID, projectId: config.FIREBASE_PROJECT_ID });
-  console.log("ℹ️ Firebase Admin inicializado con credenciales por defecto (ADC).");
 }
 
 const db = admin.firestore();
@@ -35,16 +39,15 @@ export interface MessageRow {
 export const memory = {
   addMessage: async (userId: number, role: Role, content: string, toolCalls?: any, toolCallId?: string) => {
     try {
-      const docRef = db.collection('conversations').doc(userId.toString()).collection('messages').doc();
-      await docRef.set({
+      await db.collection('conversations').doc(userId.toString()).collection('messages').add({
         role,
         content,
         tool_calls: toolCalls || null,
         tool_call_id: toolCallId || null,
         timestamp: admin.firestore.FieldValue.serverTimestamp()
       });
-    } catch (err) {
-      console.error("❌ Error al añadir mensaje a Firestore:", err);
+    } catch (err: any) {
+      console.error("❌ Error al añadir mensaje:", err.message);
     }
   },
   
@@ -70,26 +73,9 @@ export const memory = {
       });
 
       return messages.reverse();
-    } catch (err) {
-      console.error("❌ Error al obtener historial de Firestore:", err);
+    } catch (err: any) {
+      console.error("❌ Error al obtener historial:", err.message);
       return [];
-    }
-  },
-
-  clearHistory: async (userId: number) => {
-    try {
-      const messagesRef = db.collection('conversations').doc(userId.toString()).collection('messages');
-      const snapshot = await messagesRef.get();
-      
-      const batch = db.batch();
-      snapshot.forEach(doc => {
-        batch.delete(doc.ref);
-      });
-      
-      await batch.commit();
-      console.log(`✅ Historial borrado para el usuario ${userId}`);
-    } catch (err) {
-      console.error("❌ Error al borrar historial en Firestore:", err);
     }
   }
 };
