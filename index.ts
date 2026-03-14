@@ -1,5 +1,5 @@
 import express from 'express';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import admin from 'firebase-admin';
 import { Bot, InputFile } from 'grammy';
 import axios from 'axios';
@@ -175,20 +175,22 @@ bot.on("message:voice", async (ctx) => {
     fs.writeFileSync(tempIn, response.data);
     console.log("✅ Audio guardado en:", tempIn);
 
-    // 2. STT (Whisper) - especificar formato OGG para Telegram
-    console.log("📝 Transcribiendo con Whisper (formato ogg)...");
-    const audioFile = fs.createReadStream(tempIn);
-    (audioFile as any).path = 'audio.ogg'; // Hint de formato para Groq
+    // 2. STT (Whisper) - usando toFile para especificar formato OGG correctamente
+    console.log("📝 Transcribiendo con Whisper (OGG)...");
+    const audioForGroq = await toFile(
+      fs.createReadStream(tempIn),
+      'audio.ogg',
+      { type: 'audio/ogg' }
+    );
 
     const transcription = await groq.audio.transcriptions.create({
-      file: audioFile,
+      file: audioForGroq,
       model: "whisper-large-v3",
-      language: "es",
-      response_format: "text"
+      language: "es"
     });
-    
+
     fs.unlinkSync(tempIn);
-    const userText = transcription as unknown as string;
+    const userText = transcription.text;
     console.log(`🎙️ Transcripción: "${userText}"`);
     
     if (!userText.trim()) {
